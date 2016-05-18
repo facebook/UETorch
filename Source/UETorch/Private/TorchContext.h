@@ -24,7 +24,7 @@ public:
 
   void Tick(float DeltaTime);
 	bool CallFunctionString(const FString& FunctionName, FString In, FString& Out);
-	bool CallFunctionArray(const FString& FunctionName, TArray<FString> In, FString& Out);
+	bool CallFunctionArray(const FString& FunctionName, const TArray<FString>& In, FString& Out);
 };
 
 struct FTorchUtils {

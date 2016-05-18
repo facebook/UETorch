@@ -16,7 +16,7 @@
 #include "TorchPluginComponent.h"
 // #include "ScriptPluginComponent.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogUETorch, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogScriptPlugin, Log, All);
 
 #if WITH_EDITOR
 #include "UnrealEd.h"

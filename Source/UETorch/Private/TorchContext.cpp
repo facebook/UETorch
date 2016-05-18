@@ -11,8 +11,6 @@
 #include "ScriptBlueprintGeneratedClass.h"
 #include "TorchContext.h"
 
-DEFINE_LOG_CATEGORY(LogUETorch);
-
 const ANSICHAR *UTPackage = "uetorch";
 
 
@@ -48,7 +46,7 @@ void FTorchContext::Tick(float DeltaTime)
     const int NumResults = 0;
     if (lua_pcall(LuaState, NumArgs, NumResults, 0) != 0)
     {
-      UE_LOG(LogUETorch, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
+      UE_LOG(LogScriptPlugin, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
     }
   }
 }
@@ -64,7 +62,7 @@ bool FTorchContext::CallFunctionString(const FString& FunctionName, FString In, 
 	}
 	else
 	{
-		UE_LOG(LogUETorch, Warning, TEXT("Failed to call function '%s' "), *FunctionName);
+		UE_LOG(LogScriptPlugin, Warning, TEXT("Failed to call function '%s' "), *FunctionName);
 	}
 
 	return bSuccess;
@@ -83,18 +81,22 @@ bool FTorchUtils::CallFunctionString(lua_State* LuaState, const ANSICHAR* Functi
 	const int NumResults = 1;
 	if (lua_pcall(LuaState, NumArgs, NumResults, 0) != 0)
 	{
-		UE_LOG(LogUETorch, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
+		UE_LOG(LogScriptPlugin, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
 		bResult = false;
 	}
-	if (!lua_isstring(LuaState, -1)) {
-		UE_LOG(LogUETorch, Warning, TEXT("Lua function %s did not return a string"), ANSI_TO_TCHAR(FunctionName));
+	if (!lua_isstring(LuaState, -1) && !lua_isnil(LuaState, -1)) {
+		UE_LOG(LogScriptPlugin, Warning, TEXT("Lua function %s did not return a string or nil"), ANSI_TO_TCHAR(FunctionName));
 	}
-	Out = lua_tostring(LuaState, -1);
+	if (lua_isnil(LuaState, -1)) {
+	  Out = FString(TEXT("<nil>"));
+	} else {
+	  Out = lua_tostring(LuaState, -1);
+	}
 	lua_pop(LuaState, 1);
 	return bResult;
 }
 
-bool FTorchContext::CallFunctionArray(const FString& FunctionName, TArray<FString> In, FString& Out)
+bool FTorchContext::CallFunctionArray(const FString& FunctionName, const TArray<FString>& In, FString& Out)
 {
 	check(LuaState);
 
@@ -105,7 +107,7 @@ bool FTorchContext::CallFunctionArray(const FString& FunctionName, TArray<FStrin
 	}
 	else
 	{
-		UE_LOG(LogUETorch, Warning, TEXT("Failed to call function '%s' "), *FunctionName);
+		UE_LOG(LogScriptPlugin, Warning, TEXT("Failed to call function '%s' "), *FunctionName);
 	}
 
 	return bSuccess;
@@ -125,13 +127,17 @@ bool FTorchUtils::CallFunctionArray(lua_State* LuaState, const ANSICHAR* Functio
 	const int NumResults = 1;
 	if (lua_pcall(LuaState, NumArgs, NumResults, 0) != 0)
 	{
-		UE_LOG(LogUETorch, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
+		UE_LOG(LogScriptPlugin, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
 		bResult = false;
 	}
-	if (!lua_isstring(LuaState, -1)) {
-		UE_LOG(LogUETorch, Warning, TEXT("Lua function %s did not return a string"), ANSI_TO_TCHAR(FunctionName));
+	if (!lua_isstring(LuaState, -1) && !lua_isnil(LuaState, -1)) {
+		UE_LOG(LogScriptPlugin, Warning, TEXT("Lua function %s did not return a string or nil"), ANSI_TO_TCHAR(FunctionName));
 	}
-	Out = lua_tostring(LuaState, -1);
+	if (lua_isnil(LuaState, -1)) {
+	  Out = FString(TEXT("<nil>"));
+	} else {
+  	Out = lua_tostring(LuaState, -1);
+	}
 	lua_pop(LuaState, 1);
 	return bResult;
 }

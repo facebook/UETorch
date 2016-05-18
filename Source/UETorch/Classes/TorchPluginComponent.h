@@ -56,7 +56,7 @@ public:
   * @param Out String output from the function
   */
   UFUNCTION(BlueprintCallable, Category = "Script|Functions")
-  virtual bool CallTorchFunctionArray(FString FunctionName, TArray<FString> &In, FString &Out);
+  virtual bool CallTorchFunctionArray(FString FunctionName, TArray<FString> In, FString &Out);
 
 
   // Begin UActorComponent interface.
