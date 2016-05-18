@@ -50,13 +50,13 @@ public:
   virtual bool CallTorchFunctionString(FString FunctionName, FString In, FString &Out);
 
   /**
-  * Calls a script defined function (strings -> string)
+  * Calls a script defined function (Array<string> -> string)
   * @param FunctionName Name of the function to call
   * @param In Array of String arguments to the function
   * @param Out String output from the function
   */
   UFUNCTION(BlueprintCallable, Category = "Script|Functions")
-  virtual bool CallTorchFunctionArray(FString FunctionName, TArray<FString> In, FString &Out);
+  virtual bool CallTorchFunctionArray(FString FunctionName, TArray<FString> &In, FString &Out);
 
 
   // Begin UActorComponent interface.
