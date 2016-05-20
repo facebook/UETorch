@@ -136,7 +136,7 @@ bool FTorchUtils::CallFunctionArray(lua_State* LuaState, const ANSICHAR* Functio
 	if (lua_isnil(LuaState, -1)) {
 	  Out = FString(TEXT("<nil>"));
 	} else {
-  	Out = lua_tostring(LuaState, -1);
+  	  Out = lua_tostring(LuaState, -1);
 	}
 	lua_pop(LuaState, 1);
 	return bResult;
