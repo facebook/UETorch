@@ -25,6 +25,7 @@ typedef struct {
 
 struct UObject;
 struct AActor;
+struct UMaterial;
 
 void GetViewportSize(IntSize* r);
 bool CaptureScreenshot(IntSize* size, void* data);
@@ -36,6 +37,11 @@ bool CaptureDepthField(UObject* _this, const IntSize* size, void* data, int stri
 void PressKey(const char *key, int ControllerId, int eventType);
 bool SetTickDeltaBounds(UObject* _this, float MinDeltaSeconds, float MaxDeltaSeconds);
 
+bool SetActorPosition(AActor* object, double x, double y, double z);
+bool SetActorRotation(AActor* object, double pitch, double roll, double yaw);
+void SetActorVisible(AActor* object, bool visible);
+bool SetActorVelocity(AActor* object, double x, double y, double z);
+bool SetMaterial(AActor* object, UMaterial* materialId);
 ]]
 
 local utlib = ffi.C
@@ -205,7 +211,7 @@ end
 function GetActor(name)
    local level = UE.GetFullName(UE.GetCurrentLevel(this))
    level = string.sub(level, 7, -1) -- remove "Level"
-   local actor = UE.FindObject('Actor', nil, level..'.'..name)
+   local actor = UE.FindObject(Actor.Class(), nil, level..'.'..name)
    if tostring(actor) ~= 'userdata: (nil)' then
       return actor
    else
@@ -394,3 +400,9 @@ function DepthField(stride, verbose)
 
    return depth
 end
+
+SetActorPosition = utlib.SetActorPosition
+SetActorRotation = utlib.SetActorRotation
+SetActorVisible = utlib.SetActorVisible
+SetActorVelocity = utlib.SetActorVelocity
+SetMaterial = utlib.SetMaterial

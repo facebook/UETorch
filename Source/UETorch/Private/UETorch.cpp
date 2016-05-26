@@ -706,3 +706,43 @@ extern "C" bool CaptureDepthField(UObject* _this, const IntSize* size, void* dat
 	}
 	return true;
 }
+
+extern "C" bool SetActorPosition(AActor* object, double x, double y, double z) {
+	return object->SetActorLocation(FVector(x,y,z), false);
+}
+
+extern "C" bool SetActorRotation(AActor* object, double pitch, double roll, double yaw) {
+	return object->SetActorRotation(FRotator(pitch,roll,yaw));
+}
+
+extern "C" void SetActorVisible(AActor* object, bool visible) {
+	object->SetActorHiddenInGame(!visible);
+}
+
+extern "C" bool SetActorVelocity(AActor* object, double x, double y, double z) {
+	if(!object) {
+		printf("object doesn't exist\n");
+		return false;
+	}
+	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
+	if(!component) {
+		printf("Object doesn't have StaticMeshComponent\n");
+		return false;
+	}
+	component->SetPhysicsLinearVelocity(FVector(x,y,z));
+	return true;
+}
+
+extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
+	if(!material) {
+		printf("Material doesn't exist\n");
+		return false;
+	}
+	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
+	if(!component) {
+		printf("Object doesn't have StaticMeshComponent\n");
+		return false;
+	}
+	component->SetMaterial(0, material);
+	return true;
+}
