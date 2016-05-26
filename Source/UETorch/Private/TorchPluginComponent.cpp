@@ -12,88 +12,90 @@
 #include "TorchContext.h"
 
 UTorchPluginComponent::UTorchPluginComponent(const FObjectInitializer& ObjectInitializer)
-  : Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-  PrimaryComponentTick.bCanEverTick = true;
-  bTickInEditor = false;
-  bAutoActivate = true;
-  bWantsInitializeComponent = true;
-  MainModule = TEXT("<MainModule>");
-  Context = NULL;
+	PrimaryComponentTick.bCanEverTick = true;
+	bTickInEditor = false;
+	bAutoActivate = true;
+	bWantsInitializeComponent = true;
+	MainModule = TEXT("<MainModule>");
+	Context = NULL;
 }
 
 FString UTorchPluginComponent::MakeLuaInitString() {
-  FString InitStr = "require 'uetorch';"                 // FIXME: use local uetorch package
-                    "local _main = require '" + MainModule + "';"
-                    "if type(_main)=='table' and _main.initialize then _main.initialize() end";
-  return InitStr;
+	FString InitStr =
+		"require 'uetorch';" // FIXME: use local uetorch package
+		"local _main = require '" + MainModule + "';"
+		"if type(_main)=='table' and _main.initialize then _main.initialize() end";
+
+	return InitStr;
 }
 
 void UTorchPluginComponent::OnRegister()
 {
-  Super::OnRegister();
+	Super::OnRegister();
 
-  if (GetWorld() && GetWorld()->WorldType != EWorldType::Editor)
-  {
-    FString InitStr = MakeLuaInitString();
-    Context = FTorchContext::Create(InitStr, this);
-    if (!Context || !Context->CanTick())
-    {
-      bAutoActivate = false;
-      PrimaryComponentTick.bCanEverTick = false;
-    }
-  }
+	if (GetWorld() && GetWorld()->WorldType != EWorldType::Editor)
+	{
+		FString InitStr = MakeLuaInitString();
+		Context = FTorchContext::Create(InitStr, this);
+		if (!Context || !Context->CanTick())
+		{
+			bAutoActivate = false;
+			PrimaryComponentTick.bCanEverTick = false;
+		}
+	}
 }
 
 void UTorchPluginComponent::InitializeComponent()
 {
-  Super::InitializeComponent();
-  // FIXME: check if source file has changed?
-  if (Context)
-  {
-    Context->BeginPlay();
-  }
+	Super::InitializeComponent();
+	// FIXME: check if source file has changed?
+	if (Context)
+	{
+		Context->BeginPlay();
+	}
 }
 
 void UTorchPluginComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
-  Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-  if (Context)
-  {
-    Context->Tick(DeltaTime);
-  }
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (Context)
+	{
+		Context->Tick(DeltaTime);
+	}
 };
 
 void UTorchPluginComponent::OnUnregister()
 {
-  if (Context)
-  {
-    Context->Destroy();
-    delete Context;
-    Context = NULL;
-  }
+	if (Context)
+	{
+		Context->Destroy();
+		delete Context;
+		Context = NULL;
+	}
 
-  Super::OnUnregister();
+	Super::OnUnregister();
 }
 
 bool UTorchPluginComponent::CallTorchFunction(FString FunctionName)
 {
-  bool bSuccess = false;
-  if (Context)
-  {
-    bSuccess = Context->CallFunction(FunctionName);
-  }
-  return bSuccess;
+	bool bSuccess = false;
+	if (Context)
+	{
+		bSuccess = Context->CallFunction(FunctionName);
+	}
+	return bSuccess;
 }
 
 bool UTorchPluginComponent::CallTorchFunctionString(FString FunctionName, FString In, FString &Out)
 {
-  bool bSuccess = false;
-  if (Context)
-  {
-    bSuccess = Context->CallFunctionString(FunctionName, In, Out);
-  }
-  return bSuccess;
+	bool bSuccess = false;
+	if (Context)
+	{
+		bSuccess = Context->CallFunctionString(FunctionName, In, Out);
+	}
+	return bSuccess;
 }
 
 bool UTorchPluginComponent::CallTorchFunctionArray(FString FunctionName, TArray<FString> In, FString &Out)

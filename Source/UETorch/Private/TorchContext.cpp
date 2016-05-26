@@ -37,18 +37,18 @@ FTorchContext* FTorchContext::Create(const FString& SourceCode, UObject* Owner)
 
 void FTorchContext::Tick(float DeltaTime)
 {
-  check(LuaState && bHasTick);
-  if (bHasTick) {
-    const ANSICHAR* FunctionName = "Tick";
-    lua_getglobal(LuaState, FunctionName);
-    lua_pushnumber(LuaState, DeltaTime);
-    const int NumArgs = 1;
-    const int NumResults = 0;
-    if (lua_pcall(LuaState, NumArgs, NumResults, 0) != 0)
-    {
-      UE_LOG(LogScriptPlugin, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
-    }
-  }
+	check(LuaState && bHasTick);
+	if (bHasTick) {
+		const ANSICHAR* FunctionName = "Tick";
+		lua_getglobal(LuaState, FunctionName);
+		lua_pushnumber(LuaState, DeltaTime);
+		const int NumArgs = 1;
+		const int NumResults = 0;
+		if (lua_pcall(LuaState, NumArgs, NumResults, 0) != 0)
+		{
+			UE_LOG(LogScriptPlugin, Warning, TEXT("Cannot call Lua function %s: %s"), ANSI_TO_TCHAR(FunctionName), ANSI_TO_TCHAR(lua_tostring(LuaState, -1)));
+		}
+	}
 }
 
 bool FTorchContext::CallFunctionString(const FString& FunctionName, FString In, FString& Out)

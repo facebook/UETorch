@@ -22,7 +22,7 @@ protected:
 public:
 	static FTorchContext* Create(const FString& SourceCode, UObject* Owner);
 
-  void Tick(float DeltaTime);
+	void Tick(float DeltaTime);
 	bool CallFunctionString(const FString& FunctionName, FString In, FString& Out);
 	bool CallFunctionArray(const FString& FunctionName, const TArray<FString>& In, FString& Out);
 };
