@@ -965,3 +965,12 @@ extern "C" bool SetResolution(int x, int y) {
 		return false;
 	}
 }
+
+extern "C" bool DestroyActor(AActor* object) {
+	if(object == NULL) {
+		printf("Object is null\n");
+		return false;
+	}
+	object->K2_DestroyActor();
+	return true;
+}

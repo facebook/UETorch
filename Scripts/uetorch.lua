@@ -55,6 +55,8 @@ bool SetActorVelocity(AActor* object, float x, float y, float z);
 bool SetActorAngularVelocity(AActor* object, float x, float y, float z);
 bool SetActorScale3D(AActor* object, float x, float y, float z);
 
+void DestroyActor(AActor* object);
+
 bool SetMaterial(AActor* object, UMaterial* material);
 bool AddForce(AActor* object, float x, float y, float z);
 ]]
@@ -508,6 +510,7 @@ uetorch.SetActorVisible = utlib.SetActorVisible
 uetorch.SetActorVelocity = utlib.SetActorVelocity
 uetorch.SetActorAngularVelocity = utlib.SetActorAngularVelocity
 uetorch.SetActorScale3D = utlib.SetActorScale3D
+uetorch.DestroyActor = utlib.DestroyActor
 uetorch.SetMaterial = utlib.SetMaterial
 uetorch.AddForce = utlib.AddForce
 uetorch.SetResolution = utlib.SetResolution
