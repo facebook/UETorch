@@ -50,15 +50,18 @@ bool GetActorBounds(AActor* object, float* x, float* y, float* z, float* boxX, f
 bool SetActorLocation(AActor* object, float x, float y, float z);
 bool SetActorRotation(AActor* object, float pitch, float yaw, float roll);
 bool SetActorLocationAndRotation(AActor* object, float x, float y, float z, float pitch, float yaw, float roll);
-void SetActorVisible(AActor* object, bool visible);
+bool SetActorVisible(AActor* object, bool visible);
 bool SetActorVelocity(AActor* object, float x, float y, float z);
 bool SetActorAngularVelocity(AActor* object, float x, float y, float z);
 bool SetActorScale3D(AActor* object, float x, float y, float z);
 
-void DestroyActor(AActor* object);
+bool DestroyActor(AActor* object);
 
 bool SetMaterial(AActor* object, UMaterial* material);
 bool AddForce(AActor* object, float x, float y, float z);
+
+bool SimpleMoveToLocation(UObject* _this, AActor* object, float x, float y, float z);
+bool SimpleMoveToActor(UObject* _this, AActor* object, AActor* goal);
 ]]
 
 local utlib = ffi.C
@@ -515,5 +518,22 @@ uetorch.SetMaterial = utlib.SetMaterial
 uetorch.AddForce = utlib.AddForce
 uetorch.SetResolution = utlib.SetResolution
 uetorch.SetMouse = utlib.SetMouse
+
+-------------------------------------------------------------------------------
+--
+-- Pawn control
+--
+-- see https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/GameFramework/APawn/index.html
+-- and https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/GameFramework/AController/index.html
+-- for further reference
+-------------------------------------------------------------------------------
+
+function uetorch.SimpleMoveToLocation(actor, x, y, z)
+   return utlib.SimpleMoveToLocation(this, actor, x, y, z)
+end
+
+function uetorch.SimpleMoveToActor(actor, goal)
+   return utlib.SimpleMoveToActor(this, actor, goal)
+end
 
 return uetorch

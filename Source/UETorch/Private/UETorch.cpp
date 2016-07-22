@@ -974,3 +974,64 @@ extern "C" bool DestroyActor(AActor* object) {
 	object->K2_DestroyActor();
 	return true;
 }
+
+/**
+ * Functions to control pawns
+ */
+
+extern "C" bool SimpleMoveToLocation(UObject* _this, AActor* object, float x, float y, float z) {
+	if(object == NULL) {
+		printf("Object is null\n");
+		return false;
+	}
+	APawn* Pawn = Cast<APawn>(object);
+	if(Pawn == NULL) {
+		printf("Object is not a pawn\n");
+		return false;
+	}
+	UWorld* World = GEngine->GetWorldFromContextObject(_this);
+	if(World == NULL) {
+		printf("World is null\n");
+		return false;
+	}
+	UNavigationSystem* NavSys = World->GetNavigationSystem();
+	if(NavSys == NULL) {
+		printf("Navigation system is null\n");
+		return false;
+	}
+	AController* Controller = Pawn->GetController();
+	if(Controller == NULL) {
+		printf("Controller is null\n");
+		return false;
+	}
+	NavSys->SimpleMoveToLocation(Controller, FVector(x,y,z));
+	return true;
+}
+extern "C" bool SimpleMoveToActor(UObject* _this, AActor* object, AActor* goal) {
+	if(object == NULL) {
+		printf("Object is null\n");
+		return false;
+	}
+	APawn* Pawn = Cast<APawn>(object);
+	if(Pawn == NULL) {
+		printf("Object is not a pawn\n");
+		return false;
+	}
+	UWorld* World = GEngine->GetWorldFromContextObject(_this);
+	if(World == NULL) {
+		printf("World is null\n");
+		return false;
+	}
+	UNavigationSystem* NavSys = World->GetNavigationSystem();
+	if(NavSys == NULL) {
+		printf("Navigation system is null\n");
+		return false;
+	}
+	AController* Controller = Pawn->GetController();
+	if(Controller == NULL) {
+		printf("Controller is null\n");
+		return false;
+	}
+	NavSys->SimpleMoveToActor(Controller, goal);
+	return true;
+}
