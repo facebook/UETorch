@@ -567,3 +567,5 @@ uetorch.GrabComponent = utlib.GrabComponent
 uetorch.ReleaseComponent = utlib.ReleaseComponent
 uetorch.SetTargetLocation = utlib.SetTargetLocation
 uetorch.WakeRigidBody = utlib.WakeRigidBody
+
+return uetorch
