@@ -767,30 +767,29 @@ extern "C" bool GetActorVisible(AActor* object, bool* visible) {
 	return true;
 }
 
-extern "C" bool GetActorVelocity(AActor* object, float* x, float* y, float* z) {
+bool GetActorMeshComponent(AActor* object, UStaticMeshComponent* component) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
 	}
-	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
+	component = object->FindComponentByClass<UStaticMeshComponent>();
 	if(component == NULL) {
-		printf("Object doesn't have an StaticMeshComponent\n");
+		printf("Object doesn't have an UStaticMeshComponent\n");
 		return false;
 	}
+	return true;
+}
+
+extern "C" bool GetActorVelocity(AActor* object, float* x, float* y, float* z) {
+	UStaticMeshComponent* component = nullptr;
+	if(!GetActorMeshComponent(object, component)) return false;
 	FVector actorLinVel = component->GetPhysicsLinearVelocity();
 	return true;
 }
 
 extern "C" bool GetActorAngularVelocity(AActor* object, float* x, float* y, float* z) {
-	if(object == NULL) {
-		printf("Object is null\n");
-		return false;
-	}
-	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
-	if(component == NULL) {
-		printf("Object doesn't have an StaticMeshComponent\n");
-		return false;
-	}
+	UStaticMeshComponent* component = nullptr;
+	if(!GetActorMeshComponent(object, component)) return false;
 	FVector actorAngVel = component->GetPhysicsAngularVelocity();
 	*x = actorAngVel.X;
 	*y = actorAngVel.Y;
@@ -823,6 +822,18 @@ extern "C" bool GetActorBounds(AActor* object, float* x, float* y, float* z, flo
 	*boxX = BoxExtent.X;
 	*boxY = BoxExtent.Y;
 	*boxZ = BoxExtent.Z;
+	return true;
+}
+
+extern "C" bool GetActorForwardVector(AActor* object, float* x, float* y, float* z) {
+	if(object == NULL) {
+		printf("Object is null\n");
+		return false;
+	}
+	FVector ForwardVector = object->GetActorForwardVector();
+	*x = ForwardVector.X;
+	*y = ForwardVector.Y;
+	*z = ForwardVector.Z;
 	return true;
 }
 
@@ -860,15 +871,8 @@ extern "C" bool SetActorVisible(AActor* object, bool visible) {
 }
 
 extern "C" bool SetActorVelocity(AActor* object, float x, float y, float z) {
-	if(object == NULL) {
-		printf("Object is null\n");
-		return false;
-	}
-	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
-	if(component == NULL) {
-		printf("Object doesn't have an StaticMeshComponent\n");
-		return false;
-	}
+	UStaticMeshComponent* component = nullptr;
+	if(!GetActorMeshComponent(object, component)) return false;
 	FBodyInstance* BodyInst = GetBodyInstance(object);
 	if(BodyInst == NULL) {
 		printf("BodyInstance is null\n");
@@ -883,15 +887,8 @@ extern "C" bool SetActorVelocity(AActor* object, float x, float y, float z) {
 }
 
 extern "C" bool SetActorAngularVelocity(AActor* object, float x, float y, float z) {
-	if(object == NULL) {
-		printf("Object is null\n");
-		return false;
-	}
-	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
-	if(component == NULL) {
-		printf("Object doesn't have an StaticMeshComponent\n");
-		return false;
-	}
+	UStaticMeshComponent* component = nullptr;
+	if(!GetActorMeshComponent(object, component)) return false;
 	FBodyInstance* BodyInst = GetBodyInstance(object);
 	if(BodyInst == NULL) {
 		printf("BodyInstance is null\n");
@@ -915,17 +912,10 @@ extern "C" bool SetActorScale3D(AActor* object, float x, float y, float z) {
 }
 
 extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
-	if(object == NULL) {
-		printf("Object is null\n");
-		return false;
-	}
+	UStaticMeshComponent* component = nullptr;
+	if(!GetActorMeshComponent(object, component)) return false;
 	if(!material) {
 		printf("Material doesn't exist\n");
-		return false;
-	}
-	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
-	if(component == NULL) {
-		printf("Object doesn't have an StaticMeshComponent\n");
 		return false;
 	}
 	component->SetMaterial(0, material);
@@ -933,15 +923,8 @@ extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
 }
 
 extern "C" bool AddForce(AActor* object, float x, float y, float z) {
-	if(object == NULL) {
-		printf("Object is null\n");
-		return false;
-	}
-	UStaticMeshComponent *component = object->FindComponentByClass<UStaticMeshComponent>();
-	if(component == NULL) {
-		printf("Object doesn't have an StaticMeshComponent\n");
-		return false;
-	}
+	UStaticMeshComponent* component = nullptr;
+	if(!GetActorMeshComponent(object, component)) return false;
 	FBodyInstance* BodyInst = GetBodyInstance(object);
 	if(BodyInst == NULL) {
 		printf("BodyInstance is null\n");
@@ -1007,6 +990,7 @@ extern "C" bool SimpleMoveToLocation(UObject* _this, AActor* object, float x, fl
 	NavSys->SimpleMoveToLocation(Controller, FVector(x,y,z));
 	return true;
 }
+
 extern "C" bool SimpleMoveToActor(UObject* _this, AActor* object, AActor* goal) {
 	if(object == NULL) {
 		printf("Object is null\n");
@@ -1033,5 +1017,53 @@ extern "C" bool SimpleMoveToActor(UObject* _this, AActor* object, AActor* goal) 
 		return false;
 	}
 	NavSys->SimpleMoveToActor(Controller, goal);
+	return true;
+}
+
+/**
+ * Functions for actor handling
+ */
+
+extern "C" bool GrabComponent(UPhysicsHandleComponent* HandleComponent, UPrimitiveComponent* target, FName* InBoneName, float x, float y, float z) {
+	if(HandleComponent == NULL) {
+		printf("HandleComponent is null\n");
+		return false;
+	}
+	if(target == NULL) {
+		printf("target is null\n");
+		return false;
+	}
+	if(InBoneName == NULL) {
+		printf("InBoneName is null\n");
+		return false;
+	}
+	HandleComponent->GrabComponent(target, *InBoneName, FVector(x,y,z), true);
+	return true;
+}
+
+extern "C" bool ReleaseComponent(UPhysicsHandleComponent* HandleComponent) {
+	if(HandleComponent == NULL) {
+		printf("HandleComponent is null\n");
+		return false;
+	}
+	HandleComponent->ReleaseComponent();
+	return true;
+}
+
+extern "C" bool SetTargetLocation(UPhysicsHandleComponent* HandleComponent, float x, float y, float z) {
+	if(HandleComponent == NULL) {
+		printf("HandleComponent is null\n");
+		return false;
+	}
+	HandleComponent->SetTargetLocation(FVector(x,y,z));
+	return true;
+}
+
+extern "C" bool WakeRigidBody(UPrimitiveComponent* component) {
+	if(component == NULL) {
+		printf("component is null\n");
+		return false;
+	}
+	component->WakeRigidBody(NAME_None);
 	return true;
 }

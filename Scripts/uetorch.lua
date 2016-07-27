@@ -25,7 +25,10 @@ typedef struct {
 
 struct UObject;
 struct AActor;
+struct UPrimitiveComponent;
 struct UMaterial;
+struct FName;
+struct UPhysicsHandleComponent;
 
 void GetViewportSize(IntSize* r);
 bool CaptureScreenshot(IntSize* size, void* data);
@@ -46,6 +49,7 @@ bool GetActorVelocity(AActor* object, float* x, float* y, float* z);
 bool GetActorAngularVelocity(AActor* object, float* x, float* y, float* z);
 bool GetActorScale3D(AActor* object, float* x, float* y, float* z);
 bool GetActorBounds(AActor* object, float* x, float* y, float* z, float* boxX, float* boxY, float* boxZ);
+bool GetActorForwardVector(AActor* object, float *x, float *y, float *z);
 
 bool SetActorLocation(AActor* object, float x, float y, float z);
 bool SetActorRotation(AActor* object, float pitch, float yaw, float roll);
@@ -62,6 +66,11 @@ bool AddForce(AActor* object, float x, float y, float z);
 
 bool SimpleMoveToLocation(UObject* _this, AActor* object, float x, float y, float z);
 bool SimpleMoveToActor(UObject* _this, AActor* object, AActor* goal);
+
+bool GrabComponent(UPhysicsHandleComponent* HandleComponent, UPrimitiveComponent* target, FName* InBoneName, float x, float y, float z);
+bool ReleaseComponent(UPhysicsHandleComponent* HandleComponent);
+bool SetTargetLocation(UPhysicsHandleComponent* component, float x, float y, float z);
+bool WakeRigidBody(UPrimitiveComponent* component);
 ]]
 
 local utlib = ffi.C
@@ -506,6 +515,16 @@ function uetorch.GetActorBounds(actor)
    return {x = x[0], y = y[0], z = z[0], boxX = boxX[0], boxY = boxY[0], boxZ = boxZ[0]}
 end
 
+function uetorch.GetActorForwardVector(actor)
+   local x = ffi.new('float[?]', 1)
+   local y = ffi.new('float[?]', 1)
+   local z = ffi.new('float[?]', 1)
+   if not utlib.GetActorForwardVector(actor,x,y,z) then
+      return nil
+   end
+   return {x = x[0], y = y[0], z = z[0]}
+end
+
 uetorch.SetActorLocation = utlib.SetActorLocation
 uetorch.SetActorRotation = utlib.SetActorRotation
 uetorch.SetActorLocationAndRotation = utlib.SetActorLocationAndRotation
@@ -536,4 +555,15 @@ function uetorch.SimpleMoveToActor(actor, goal)
    return utlib.SimpleMoveToActor(this, actor, goal)
 end
 
-return uetorch
+-------------------------------------------------------------------------------
+--
+-- Handling (Grabbing and releasing) of actors
+--
+-- see https://docs.unrealengine.com/latest/INT/BlueprintAPI/Physics/Components/PhysicsHandle/index.html
+-- for further reference
+-------------------------------------------------------------------------------
+
+uetorch.GrabComponent = utlib.GrabComponent
+uetorch.ReleaseComponent = utlib.ReleaseComponent
+uetorch.SetTargetLocation = utlib.SetTargetLocation
+uetorch.WakeRigidBody = utlib.WakeRigidBody
