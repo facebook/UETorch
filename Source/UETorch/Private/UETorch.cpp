@@ -1067,3 +1067,12 @@ extern "C" bool WakeRigidBody(UPrimitiveComponent* component) {
 	component->WakeRigidBody(NAME_None);
 	return true;
 }
+
+extern "C" bool IgnoreCollisionWithPawn(UPrimitiveComponent* component) {
+	if(component == NULL) {
+		printf("component is null\n");
+		return false;
+	}
+	component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	return true;
+}

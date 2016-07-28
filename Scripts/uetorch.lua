@@ -71,6 +71,7 @@ bool GrabComponent(UPhysicsHandleComponent* HandleComponent, UPrimitiveComponent
 bool ReleaseComponent(UPhysicsHandleComponent* HandleComponent);
 bool SetTargetLocation(UPhysicsHandleComponent* component, float x, float y, float z);
 bool WakeRigidBody(UPrimitiveComponent* component);
+bool IgnoreCollisionWithPawn(UPrimitiveComponent* component);
 ]]
 
 local utlib = ffi.C
@@ -567,5 +568,6 @@ uetorch.GrabComponent = utlib.GrabComponent
 uetorch.ReleaseComponent = utlib.ReleaseComponent
 uetorch.SetTargetLocation = utlib.SetTargetLocation
 uetorch.WakeRigidBody = utlib.WakeRigidBody
+uetorch.IgnoreCollisionWithPawn = utlib.IgnoreCollisionWithPawn
 
 return uetorch
