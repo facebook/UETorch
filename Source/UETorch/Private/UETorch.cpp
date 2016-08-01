@@ -767,29 +767,29 @@ extern "C" bool GetActorVisible(AActor* object, bool* visible) {
 	return true;
 }
 
-bool GetActorMeshComponent(AActor* object, UStaticMeshComponent* component) {
+UStaticMeshComponent* GetActorMeshComponent(AActor* object) {
 	if(object == NULL) {
 		printf("Object is null\n");
-		return false;
+		return NULL;
 	}
-	component = object->FindComponentByClass<UStaticMeshComponent>();
+	UStaticMeshComponent* component = object->FindComponentByClass<UStaticMeshComponent>();
 	if(component == NULL) {
 		printf("Object doesn't have an UStaticMeshComponent\n");
-		return false;
+		return NULL;
 	}
-	return true;
+	return component;
 }
 
 extern "C" bool GetActorVelocity(AActor* object, float* x, float* y, float* z) {
-	UStaticMeshComponent* component = nullptr;
-	if(!GetActorMeshComponent(object, component)) return false;
+	UStaticMeshComponent* component = GetActorMeshComponent(object);
+	if(component == NULL) return false;
 	FVector actorLinVel = component->GetPhysicsLinearVelocity();
 	return true;
 }
 
 extern "C" bool GetActorAngularVelocity(AActor* object, float* x, float* y, float* z) {
-	UStaticMeshComponent* component = nullptr;
-	if(!GetActorMeshComponent(object, component)) return false;
+	UStaticMeshComponent* component = GetActorMeshComponent(object);
+	if(component == NULL) return false;
 	FVector actorAngVel = component->GetPhysicsAngularVelocity();
 	*x = actorAngVel.X;
 	*y = actorAngVel.Y;
@@ -871,8 +871,8 @@ extern "C" bool SetActorVisible(AActor* object, bool visible) {
 }
 
 extern "C" bool SetActorVelocity(AActor* object, float x, float y, float z) {
-	UStaticMeshComponent* component = nullptr;
-	if(!GetActorMeshComponent(object, component)) return false;
+	UStaticMeshComponent* component = GetActorMeshComponent(object);
+	if(component == NULL) return false;
 	FBodyInstance* BodyInst = GetBodyInstance(object);
 	if(BodyInst == NULL) {
 		printf("BodyInstance is null\n");
@@ -887,8 +887,8 @@ extern "C" bool SetActorVelocity(AActor* object, float x, float y, float z) {
 }
 
 extern "C" bool SetActorAngularVelocity(AActor* object, float x, float y, float z) {
-	UStaticMeshComponent* component = nullptr;
-	if(!GetActorMeshComponent(object, component)) return false;
+	UStaticMeshComponent* component = GetActorMeshComponent(object);
+	if(component == NULL) return false;
 	FBodyInstance* BodyInst = GetBodyInstance(object);
 	if(BodyInst == NULL) {
 		printf("BodyInstance is null\n");
@@ -912,8 +912,8 @@ extern "C" bool SetActorScale3D(AActor* object, float x, float y, float z) {
 }
 
 extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
-	UStaticMeshComponent* component = nullptr;
-	if(!GetActorMeshComponent(object, component)) return false;
+	UStaticMeshComponent* component = GetActorMeshComponent(object);
+	if(component == NULL) return false;
 	if(!material) {
 		printf("Material doesn't exist\n");
 		return false;
@@ -923,8 +923,8 @@ extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
 }
 
 extern "C" bool AddForce(AActor* object, float x, float y, float z) {
-	UStaticMeshComponent* component = nullptr;
-	if(!GetActorMeshComponent(object, component)) return false;
+	UStaticMeshComponent* component = GetActorMeshComponent(object);
+	if(component == NULL) return false;
 	FBodyInstance* BodyInst = GetBodyInstance(object);
 	if(BodyInst == NULL) {
 		printf("BodyInstance is null\n");
