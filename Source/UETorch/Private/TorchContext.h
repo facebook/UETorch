@@ -23,6 +23,7 @@ public:
 	static FTorchContext* Create(const FString& SourceCode, UObject* Owner);
 
 	void Tick(float DeltaTime);
+	void RegisterUETorchLibrary();
 	bool CallFunctionString(const FString& FunctionName, FString In, FString& Out);
 	bool CallFunctionArray(const FString& FunctionName, const TArray<FString>& In, FString& Out);
 };
@@ -30,4 +31,10 @@ public:
 struct FTorchUtils {
 	static bool CallFunctionString(lua_State* LuaState, const ANSICHAR* FunctionName, const ANSICHAR* In, FString& Out);
 	static bool CallFunctionArray(lua_State* LuaState, const ANSICHAR* FunctionName, const TArray<FString>& In, FString& Out);
+};
+
+struct FTorchLibrary {
+	static int GetActorPhysicsHandleComponent(lua_State* LuaState);
+	static int GetActorMeshComponentAsPrimitive(lua_State* LuaState);
+	static int LineTraceMeshComponent(lua_State* LuaState);
 };

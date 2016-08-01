@@ -25,7 +25,10 @@ typedef struct {
 
 struct UObject;
 struct AActor;
+struct UPrimitiveComponent;
 struct UMaterial;
+struct FName;
+struct UPhysicsHandleComponent;
 
 void GetViewportSize(IntSize* r);
 bool CaptureScreenshot(IntSize* size, void* data);
@@ -46,17 +49,29 @@ bool GetActorVelocity(AActor* object, float* x, float* y, float* z);
 bool GetActorAngularVelocity(AActor* object, float* x, float* y, float* z);
 bool GetActorScale3D(AActor* object, float* x, float* y, float* z);
 bool GetActorBounds(AActor* object, float* x, float* y, float* z, float* boxX, float* boxY, float* boxZ);
+bool GetActorForwardVector(AActor* object, float *x, float *y, float *z);
 
 bool SetActorLocation(AActor* object, float x, float y, float z);
 bool SetActorRotation(AActor* object, float pitch, float yaw, float roll);
 bool SetActorLocationAndRotation(AActor* object, float x, float y, float z, float pitch, float yaw, float roll);
-void SetActorVisible(AActor* object, bool visible);
+bool SetActorVisible(AActor* object, bool visible);
 bool SetActorVelocity(AActor* object, float x, float y, float z);
 bool SetActorAngularVelocity(AActor* object, float x, float y, float z);
 bool SetActorScale3D(AActor* object, float x, float y, float z);
 
+bool DestroyActor(AActor* object);
+
 bool SetMaterial(AActor* object, UMaterial* material);
 bool AddForce(AActor* object, float x, float y, float z);
+
+bool SimpleMoveToLocation(UObject* _this, AActor* object, float x, float y, float z);
+bool SimpleMoveToActor(UObject* _this, AActor* object, AActor* goal);
+
+bool GrabComponent(UPhysicsHandleComponent* HandleComponent, UPrimitiveComponent* target, FName* InBoneName, float x, float y, float z);
+bool ReleaseComponent(UPhysicsHandleComponent* HandleComponent);
+bool SetTargetLocation(UPhysicsHandleComponent* component, float x, float y, float z);
+bool WakeRigidBody(UPrimitiveComponent* component);
+bool IgnoreCollisionWithPawn(UPrimitiveComponent* component);
 ]]
 
 local utlib = ffi.C
@@ -501,6 +516,16 @@ function uetorch.GetActorBounds(actor)
    return {x = x[0], y = y[0], z = z[0], boxX = boxX[0], boxY = boxY[0], boxZ = boxZ[0]}
 end
 
+function uetorch.GetActorForwardVector(actor)
+   local x = ffi.new('float[?]', 1)
+   local y = ffi.new('float[?]', 1)
+   local z = ffi.new('float[?]', 1)
+   if not utlib.GetActorForwardVector(actor,x,y,z) then
+      return nil
+   end
+   return {x = x[0], y = y[0], z = z[0]}
+end
+
 uetorch.SetActorLocation = utlib.SetActorLocation
 uetorch.SetActorRotation = utlib.SetActorRotation
 uetorch.SetActorLocationAndRotation = utlib.SetActorLocationAndRotation
@@ -508,9 +533,41 @@ uetorch.SetActorVisible = utlib.SetActorVisible
 uetorch.SetActorVelocity = utlib.SetActorVelocity
 uetorch.SetActorAngularVelocity = utlib.SetActorAngularVelocity
 uetorch.SetActorScale3D = utlib.SetActorScale3D
+uetorch.DestroyActor = utlib.DestroyActor
 uetorch.SetMaterial = utlib.SetMaterial
 uetorch.AddForce = utlib.AddForce
 uetorch.SetResolution = utlib.SetResolution
 uetorch.SetMouse = utlib.SetMouse
+
+-------------------------------------------------------------------------------
+--
+-- Pawn control
+--
+-- see https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/GameFramework/APawn/index.html
+-- and https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/GameFramework/AController/index.html
+-- for further reference
+-------------------------------------------------------------------------------
+
+function uetorch.SimpleMoveToLocation(actor, x, y, z)
+   return utlib.SimpleMoveToLocation(this, actor, x, y, z)
+end
+
+function uetorch.SimpleMoveToActor(actor, goal)
+   return utlib.SimpleMoveToActor(this, actor, goal)
+end
+
+-------------------------------------------------------------------------------
+--
+-- Handling (Grabbing and releasing) of actors
+--
+-- see https://docs.unrealengine.com/latest/INT/BlueprintAPI/Physics/Components/PhysicsHandle/index.html
+-- for further reference
+-------------------------------------------------------------------------------
+
+uetorch.GrabComponent = utlib.GrabComponent
+uetorch.ReleaseComponent = utlib.ReleaseComponent
+uetorch.SetTargetLocation = utlib.SetTargetLocation
+uetorch.WakeRigidBody = utlib.WakeRigidBody
+uetorch.IgnoreCollisionWithPawn = utlib.IgnoreCollisionWithPawn
 
 return uetorch
