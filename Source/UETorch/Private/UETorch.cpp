@@ -954,15 +954,18 @@ extern "C" bool AddForce(AActor* object, float x, float y, float z) {
 	return true;
 }
 
+// implemented from https://wiki.unrealengine.com/Game_User_Settings
 extern "C" bool SetResolution(int x, int y) {
-	if(GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame) {
-		int32 WindowModeInt = GSystemResolution.WindowMode;
-		EWindowMode::Type WindowMode = EWindowMode::ConvertIntToWindowMode(WindowModeInt);
-		GEngine->GameViewport->ViewportFrame->ResizeFrame(x, y, WindowMode);
-		return true;
-	} else {
-		return false;
-	}
+  if(! GEngine)
+    return false;
+
+  UGameUserSettings* Settings = GEngine->GameUserSettings;
+  if(! Settings)
+    return false;
+
+  Settings->RequestResolutionChange(x, y, EWindowMode::Type::Windowed, false);
+  Settings->ConfirmVideoMode();
+  return true;
 }
 
 extern "C" void ExecuteConsoleCommand(UObject* _this, char* command) {
