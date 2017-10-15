@@ -64,6 +64,11 @@ bool AddForce(AActor* object, float x, float y, float z);
 
 local utlib = ffi.C
 
+-- Load functions from the DLL if target OS is Windows
+if ffi.os == 'Windows' then
+   utlib = ffi.load('UE4Editor-UETorch')
+end
+
 -------------------------------------------------------------------------------
 -- REPL
 --
