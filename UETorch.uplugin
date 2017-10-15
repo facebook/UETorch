@@ -12,12 +12,12 @@
 	"Modules": [
 		{
 			"Name": "UETorch",
-			"Type": "Developer",
-			"LoadingPhase": "PreDefault"
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	],
 	"EnabledByDefault": true,
 	"CanContainContent": false,
 	"IsBetaVersion": false,
-	"Installed": false
+	"Installed": true
 }

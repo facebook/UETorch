@@ -7,6 +7,7 @@
 -------------------------------------------------------------------------------
 
 local uetorch = require 'uetorch'
+print("loading uetorch_example")
 
 local M = {}
 
@@ -43,13 +44,16 @@ function my_repl()
 end
 
 local cubes = {}
-for i = 1, 11 do
-   cubes[i] = uetorch.GetActor(string.format('Cube%02d', i))
+for i = 1, 14 do
+   -- this is hardcoded for the objects in FirstPersonExampleMap,the first-person shooter demo map
+   -- At least in 4.13, these have names like 'EditorCube8_2' for some reason
+   cubes[i] = uetorch.GetActor(string.format('EditorCube%d_%d', i + 7, i + 1))
 end
 
 -------------------------------------------------------------------------------
 -- Tick Hook: automatically move towards blocks
 -------------------------------------------------------------------------------
+local frame = 0
 local function ExampleTickHandler(dt)
    local seg = uetorch.ObjectSegmentation(cubes, 8)
    local centerStrip = seg:select(2, math.floor(seg:size(2)/2))
@@ -64,6 +68,18 @@ local function ExampleTickHandler(dt)
    -- move block 7 into the sky for fun
    local loc = uetorch.GetActorLocation(cubes[7])
    uetorch.SetActorLocation(cubes[7], loc.x, loc.y, loc.z + 1)
+
+   -- Demonstrate taking a screenshot.
+   -- There are other images you can capture like optical flow;
+   -- check out uetorch.lua for all of them.
+   if frame == 100 then
+      local screen = uetorch.Screen()
+      local filename = "./uetorch_screenshot.png"
+      print("Saving screenshot to " .. filename)
+      require 'image'
+      image.save(filename, screen)
+   end
+   frame = frame + 1
 end
 
 uetorch.AddTickHook(ExampleTickHandler)

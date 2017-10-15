@@ -27,6 +27,8 @@ struct UObject;
 struct AActor;
 struct UMaterial;
 
+AActor *FindActor(const char *fullName);
+
 void GetViewportSize(IntSize* r);
 bool CaptureScreenshot(IntSize* size, void* data);
 bool CaptureSegmentation(UObject* _this, const IntSize* size, void* seg_data, int stride, const AActor** objects, int nObjects, bool verbose);
@@ -34,7 +36,7 @@ bool CaptureMasks(UObject* _this, const IntSize* size, void* seg_data, int strid
 bool CaptureOpticalFlow(UObject* _this, const IntSize* size, void* flow_data, void* rgb_data, float maxFlow, int stride, bool verbose);
 bool CaptureDepthField(UObject* _this, const IntSize* size, void* data, int stride, bool verbose);
 
-void PressKey(const char *key, int ControllerId, int eventType);
+void PressKey(UObject* _this, const char *key, int ControllerId, int eventType);
 void SetMouse(int x, int y);
 bool SetTickDeltaBounds(UObject* _this, float MinDeltaSeconds, float MaxDeltaSeconds);
 bool SetResolution(int x, int y);
@@ -61,6 +63,11 @@ bool AddForce(AActor* object, float x, float y, float z);
 ]]
 
 local utlib = ffi.C
+
+-- Load functions from the DLL if target OS is Windows
+if ffi.os == 'Windows' then
+   utlib = ffi.load('UE4Editor-UETorch')
+end
 
 -------------------------------------------------------------------------------
 -- REPL
@@ -193,12 +200,12 @@ local IE_RELEASED = 1
 
 -- press and hold the key with this name
 function uetorch.PressKey(key)
-   utlib.PressKey(key, 0, IE_PRESSED)
+   utlib.PressKey(this, key, 0, IE_PRESSED)
 end
 
 -- release the key with this name
 function uetorch.ReleaseKey(key)
-   utlib.PressKey(key, 0, IE_RELEASED)
+   utlib.PressKey(this, key, 0, IE_RELEASED)
 end
 
 local _tapped = {}
@@ -233,8 +240,8 @@ end
 function uetorch.GetActor(name)
    local level = UE.GetFullName(UE.GetCurrentLevel(this))
    level = string.sub(level, 7, -1) -- remove "Level"
-   local actor = UE.FindObject(Actor.Class(), nil, level..'.'..name)
-   if tostring(actor) ~= 'userdata: (nil)' then
+   local actor = utlib.FindActor(level .. '.' .. name)
+   if tonumber(actor) ~= 0 then
       return actor
    else
       return nil
@@ -257,9 +264,9 @@ function uetorch.Screen(tensor)
    end
 
    tensor = tensor or torch.FloatTensor()
+   assert(torch.type(tensor) == 'torch.FloatTensor')
    tensor = tensor:resize(3, size[0].Y, size[0].X):contiguous()
-
-   if not utlib.CaptureScreenshot(size, tensor:storage():cdata().data) then
+   if not utlib.CaptureScreenshot(size, tensor:data()) then
       print("ERROR: Unable to capture screenshot")
       return nil
    end
@@ -298,7 +305,7 @@ function uetorch.ObjectSegmentation(objects, stride, verbose)
 
    local objectArr = ffi.new(string.format("AActor*[%d]",#objects), objects)
 
-   if not utlib.CaptureSegmentation(this, size, seg:storage():cdata().data, stride, objectArr, #objects, verbose) then
+   if not utlib.CaptureSegmentation(this, size, seg:data(), stride, objectArr, #objects, verbose) then
       print("ERROR: Unable to capture segmentation")
       return nil
    end
@@ -338,7 +345,7 @@ function uetorch.ObjectMasks(objects, stride, verbose)
 
    local objectArr = ffi.new(string.format("AActor*[%d]",#objects), objects)
 
-   if not utlib.CaptureMasks(this, size, masks:storage():cdata().data, stride, objectArr, #objects, verbose) then
+   if not utlib.CaptureMasks(this, size, masks:data(), stride, objectArr, #objects, verbose) then
       print("ERROR: Unable to capture segmentation")
       return nil
    end
@@ -381,7 +388,7 @@ function uetorch.OpticalFlow(maxFlow, stride, verbose)
                   math.ceil(size[0].X/stride),
                   3)
 
-   if not utlib.CaptureOpticalFlow(this, size, flow:storage():cdata().data, rgb:storage():cdata().data, maxFlow, stride, verbose) then
+   if not utlib.CaptureOpticalFlow(this, size, flow:data(), rgb:data(), maxFlow, stride, verbose) then
       print("ERROR: Unable to capture optical flow")
       return nil
    end
@@ -414,7 +421,7 @@ function uetorch.DepthField(stride, verbose)
    local depth = torch.FloatTensor(math.ceil(size[0].Y/stride),
                    math.ceil(size[0].X/stride))
 
-   if not utlib.CaptureDepthField(this, size, depth:storage():cdata().data, stride, verbose) then
+   if not utlib.CaptureDepthField(this, size, depth:data(), stride, verbose) then
       print("ERROR: Unable to capture depth field")
       return nil
    end

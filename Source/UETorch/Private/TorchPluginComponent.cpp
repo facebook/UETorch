@@ -18,15 +18,20 @@ UTorchPluginComponent::UTorchPluginComponent(const FObjectInitializer& ObjectIni
 	bTickInEditor = false;
 	bAutoActivate = true;
 	bWantsInitializeComponent = true;
-	MainModule = TEXT("<MainModule>");
+	MainModule = TEXT("");
 	Context = NULL;
 }
 
 FString UTorchPluginComponent::MakeLuaInitString() {
-	FString InitStr =
-		"require 'uetorch';" // FIXME: use local uetorch package
-		"local _main = require '" + MainModule + "';"
-		"if type(_main)=='table' and _main.initialize then _main.initialize() end";
+	FString InitStr;
+	if (MainModule != "") {
+		InitStr =
+			"require 'uetorch';"
+			"local _main = require '" + MainModule + "';"
+			"if type(_main)=='table' and _main.initialize then _main.initialize() end";
+	} else {
+		InitStr = "require 'uetorch';";
+	}
 
 	return InitStr;
 }

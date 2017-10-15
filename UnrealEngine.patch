@@ -1,90 +1,187 @@
-diff --git a/Engine/Source/Runtime/Engine/Classes/Engine/World.h b/Engine/Source/Runtime/Engine/Classes/Engine/World.h
-index e96e60b..292a108 100644
---- a/Engine/Source/Runtime/Engine/Classes/Engine/World.h
-+++ b/Engine/Source/Runtime/Engine/Classes/Engine/World.h
-@@ -928,6 +928,10 @@ public:
- 	 *  You need Physics Scene if you'd like to trace. This flag changed ticking */
- 	bool										bShouldSimulatePhysics;
+diff --git a/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin b/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin
+index 13729f1..9fe6c28 100644
+--- a/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin
++++ b/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin
+@@ -10,10 +10,10 @@
+ 	"DocsURL" : "",
+ 	"MarketplaceURL" : "",
+ 	"SupportURL" : "",
+-	"EnabledByDefault" : false,
++	"EnabledByDefault" : true,
+ 	"CanContainContent" : false,
+ 	"IsBetaVersion" : false,
+-	"Installed" : false,
++	"Installed" : true,
+ 	"CanBeUsedWithUnrealHeaderTool" : true,
+ 	
+ 	"Modules" :
+@@ -26,20 +26,12 @@
+ 		{
+ 			"Name" : "ScriptPlugin",
+ 			"Type" : "Runtime",
+-			"LoadingPhase" : "PreDefault",
+-			"BlacklistPlatforms" :
+-			[
+-				"Linux"
+-			]
++			"LoadingPhase" : "PreDefault"
+ 		},
+ 		{
+ 			"Name" : "ScriptEditorPlugin",
+ 			"Type" : "Editor",
+-			"LoadingPhase" : "Default",
+-			"BlacklistPlatforms" :
+-			[
+-				"Linux"
+-			]
++			"LoadingPhase" : "Default"
+ 		}
+ 	]
+-}
+\ No newline at end of file
++}
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp b/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp
+index aa41365..aad84a3 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp
+@@ -97,6 +97,7 @@ void FScriptGeneratorPlugin::FinishExport()
  
-+	/** Min and max time to clamp a world tick. */
-+	float                                       MinDeltaSeconds;
-+	float                                       MaxDeltaSeconds;
-+
- #if WITH_EDITOR
- 	/** this is special flag to enable collision by default for components that are not Volume
- 	 * currently only used by editor level viewport world, and do not use this for in-game scene
-diff --git a/Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp b/Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp
-index 44365fc..02d696b 100644
---- a/Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp
-+++ b/Engine/Source/Runtime/Engine/Private/Components/PrimitiveComponent.cpp
-@@ -1425,7 +1425,6 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat&
- 				const float DeltaSize = FMath::Sqrt(DeltaSizeSq);
- 				for(int32 HitIdx=0; HitIdx<Hits.Num(); HitIdx++)
- 				{
--					PullBackHit(Hits[HitIdx], TraceStart, TraceEnd, DeltaSize);
+ bool FScriptGeneratorPlugin::SupportsTarget(const FString& TargetName) const
+ {
++#if 0
+ 	// We only support the target if it explicitly enables the required script plugin in its uproject file
+ 	bool bSupportsTarget = false;
+ 	if (FPaths::IsProjectFilePathSet())
+@@ -116,5 +117,7 @@ bool FScriptGeneratorPlugin::SupportsTarget(const FString& TargetName) const
+ 			}
+ 		}
+ 	}
+-	return bSupportsTarget;
++#else
++	return true;
++#endif
+ }
+\ No newline at end of file
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs b/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
+index a907246..d25f310 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
+@@ -46,20 +46,7 @@ namespace UnrealBuildTool.Rules
  				}
+ 				);
+ 
+-			// This checks only for UHT target platform, not the target platform of the game we're building so it's important
+-			// to make sure Lua is compiled for all supported platforms
+-			var LuaLibDirectory = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua", "Lib", Target.Platform.ToString(), "Release");
+-			var LuaLibPath = Path.Combine(LuaLibDirectory, "Lua.lib");
+-			if (File.Exists(LuaLibPath))
+-			{
+-				Log.TraceVerbose("ScriptGenerator LUA Integration enabled");
+-				Definitions.Add("WITH_LUA=1");
+-			}
+-			else
+-			{
+-				Log.TraceVerbose("ScriptGenerator LUA Integration NOT enabled");
+-			}
+-
++			Definitions.Add("WITH_LUA=1");
+ 			Definitions.Add("HACK_HEADER_GENERATOR=1");
+ 		}
+ 	}
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp
+index 6ce7beb..d26a00a 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp
+@@ -612,7 +612,8 @@ bool FLuaContext::Initialize(const FString& Code, UObject* Owner)
+ 	bool bResult = false;
+ 	LuaState = LuaNewState();
+ 	luaL_openlibs(LuaState);
+-	LuaRegisterExportedClasses(LuaState);
++	// FIXME: get ScriptGeneratorPlugin to work :(
++	// LuaRegisterExportedClasses(LuaState);
+ 	LuaRegisterUnrealUtilities(LuaState);
+ 
+ 	if (luaL_loadstring(LuaState, TCHAR_TO_ANSI(*Code)) == 0)
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
+index ac7a50e..a183b52 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
+@@ -13,6 +13,7 @@ extern "C"
+ 
+ class FLuaContext : public FScriptContextBase
+ {
++protected:
+ 	bool bHasTick;
+ 	bool bHasDestroy;
+ 	bool bHasBeginPlay;
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
+index 4d27de3..887dc1e 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
+@@ -10,7 +10,7 @@ namespace UnrealBuildTool.Rules
+ 		{
+ 			PublicIncludePaths.AddRange(
+ 				new string[] {					
+-					//"Programs/UnrealHeaderTool/Public",
++					//"Programs/UnrealHeaderTool/Public"
+ 					// ... add other public include paths required here ...
+ 				}
+ 				);
+@@ -45,7 +45,6 @@ namespace UnrealBuildTool.Rules
+ 
  			}
  
-diff --git a/Engine/Source/Runtime/Engine/Private/LevelTick.cpp b/Engine/Source/Runtime/Engine/Private/LevelTick.cpp
-index de5b04e..1128afe 100644
---- a/Engine/Source/Runtime/Engine/Private/LevelTick.cpp
-+++ b/Engine/Source/Runtime/Engine/Private/LevelTick.cpp
-@@ -1112,7 +1112,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
- 	// apply time multipliers
- 	DeltaSeconds *= Info->GetEffectiveTimeDilation();
- 	// Clamp time between 2000 fps and 2.5 fps.
--	DeltaSeconds = FMath::Clamp(DeltaSeconds,0.0005f,0.40f);
-+	DeltaSeconds = FMath::Clamp(DeltaSeconds, MinDeltaSeconds, MaxDeltaSeconds);
- 	DeltaTimeSeconds = DeltaSeconds;
+-
+ 			DynamicallyLoadedModuleNames.AddRange(
+ 				new string[]
+ 				{
+@@ -53,27 +52,21 @@ namespace UnrealBuildTool.Rules
+ 				}
+ 				);
  
- 	if ( !bIsPaused )
-diff --git a/Engine/Source/Runtime/Engine/Private/World.cpp b/Engine/Source/Runtime/Engine/Private/World.cpp
-index 0479097..276a448 100644
---- a/Engine/Source/Runtime/Engine/Private/World.cpp
-+++ b/Engine/Source/Runtime/Engine/Private/World.cpp
-@@ -123,6 +123,8 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
- ,   AudioDeviceHandle(INDEX_NONE)
- ,	FlushLevelStreamingType(EFlushLevelStreamingType::None)
- ,	NextTravelType(TRAVEL_Relative)
-+,   MinDeltaSeconds(0.0005f)
-+,   MaxDeltaSeconds(0.40f)
- {
- 	TimerManager = new FTimerManager();
- #if WITH_EDITOR
-diff --git a/Engine/Source/Runtime/Linux/ALAudio/Private/ALAudioDevice.cpp b/Engine/Source/Runtime/Linux/ALAudio/Private/ALAudioDevice.cpp
-index f917903..84d2cba 100644
---- a/Engine/Source/Runtime/Linux/ALAudio/Private/ALAudioDevice.cpp
-+++ b/Engine/Source/Runtime/Linux/ALAudio/Private/ALAudioDevice.cpp
-@@ -84,12 +84,19 @@ void FALAudioDevice::TeardownHardware( void )
- 	// Close the hardware device
- 	if( &alcCloseDevice )
- 	{
--		checkf(HardwareDevice, TEXT("Tearing down invalid OpenAL device! (HardwareDevice should not be null)."));
--		const ALCchar* DeviceName = alcGetString(HardwareDevice, ALC_DEVICE_SPECIFIER);
--		UE_LOG(LogALAudio, Log, TEXT("Closing ALAudio device : %s"), StringCast<TCHAR>(static_cast<const ANSICHAR*>(DeviceName)).Get());
-+		if(HardwareDevice)
-+		{
-+			// checkf(HardwareDevice, TEXT("Tearing down invalid OpenAL device! (HardwareDevice should not be null)."));
-+			const ALCchar* DeviceName = alcGetString(HardwareDevice, ALC_DEVICE_SPECIFIER);
-+			UE_LOG(LogALAudio, Log, TEXT("Closing ALAudio device : %s"), StringCast<TCHAR>(static_cast<const ANSICHAR*>(DeviceName)).Get());
+-			var LuaPath = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua");				
+-			var LuaLibDirectory = Path.Combine(LuaPath, "Lib", Target.Platform.ToString(), "Release");
+-			var LuaLibPath = Path.Combine(LuaLibDirectory, "Lua.lib");
+-			if (File.Exists(LuaLibPath))
+-			{					
+-				Definitions.Add("WITH_LUA=1");
++			var LuaPath = Path.GetFullPath(Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua"));
++			var LuaInstallDirectory = Path.Combine(LuaPath, "install");
++			var LuaLibDirectory = Path.Combine(LuaInstallDirectory, "lib");
++			var LuaLibPath = Path.Combine(LuaLibDirectory, "liblua.so");
++			Definitions.Add("WITH_LUA=1");
  
--		alcCloseDevice( HardwareDevice );
--		HardwareDevice = nullptr;
-+			alcCloseDevice( HardwareDevice );
-+			HardwareDevice = nullptr;
-+		}
-+		else
-+		{
-+			UE_LOG(LogALAudio, Log, TEXT("Error: No ALAudio device found"));
-+		}
+-				// Path to Lua include files
+-				var IncludePath = Path.GetFullPath(Path.Combine(LuaPath, "Include"));
+-				PrivateIncludePaths.Add(IncludePath);
++			// Path to Lua include files
++			var IncludePath = Path.GetFullPath(Path.Combine(LuaInstallDirectory, "include"));
++			PrivateIncludePaths.Add(IncludePath);
+ 
+-				// Lib file
+-				PublicLibraryPaths.Add(LuaLibDirectory);
+-				PublicAdditionalLibraries.Add(LuaLibPath);
++			// Lib file
++			PublicLibraryPaths.Add(LuaLibDirectory);
++			PublicAdditionalLibraries.Add(LuaLibPath);
+ 
+-				Log.TraceVerbose("LUA Integration enabled: {0}", IncludePath);
+-			}
+-			else
+-			{
+-				Log.TraceVerbose("LUA Integration NOT enabled");
+-			}
++			Log.TraceVerbose("LUA Integration enabled: {0}", IncludePath);
+ 		}
  	}
- 
- }
+-}
+\ No newline at end of file
++}
 diff --git a/Engine/Source/Runtime/Core/Private/Linux/LinuxPlatformProcess.cpp b/Engine/Source/Runtime/Core/Private/Linux/LinuxPlatformProcess.cpp
-index 977d885..612482f 100644
+index a8d7a32..122ce3b 100644
 --- a/Engine/Source/Runtime/Core/Private/Linux/LinuxPlatformProcess.cpp
 +++ b/Engine/Source/Runtime/Core/Private/Linux/LinuxPlatformProcess.cpp
-@@ -16,14 +16,15 @@ void* FLinuxPlatformProcess::GetDllHandle( const TCHAR* Filename )
+@@ -26,14 +26,15 @@ void* FLinuxPlatformProcess::GetDllHandle( const TCHAR* Filename )
  	FString AbsolutePath = FPaths::ConvertRelativePathToFull(Filename);
  
  	int DlOpenMode = RTLD_LAZY;
@@ -106,139 +203,5 @@ index 977d885..612482f 100644
 +	// }
 +	DlOpenMode |= RTLD_GLOBAL;
  
- 	void *Handle = dlopen( TCHAR_TO_ANSI(*AbsolutePath), DlOpenMode );
+ 	void *Handle = dlopen( TCHAR_TO_UTF8(*AbsolutePath), DlOpenMode );
  	if (!Handle)
-diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPlugin.cpp b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPlugin.cpp
-index 1c4fe64..ec6d75e 100644
---- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPlugin.cpp
-+++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPlugin.cpp
-@@ -16,7 +16,7 @@ UProperty* FindScriptPropertyHelper(UClass* Class, FName PropertyName)
- 	return NULL;
- }
- 
--#if 0
-+#if WITH_LUA
- #include "GeneratedScriptLibraries.inl"
- #endif 
- 
-diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
-index 658994f..697517b 100644
---- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
-+++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
-@@ -13,6 +13,7 @@ extern "C"
- 
- class FLuaContext : public FScriptContextBase
- {
-+protected:
- 	bool bHasTick;
- 	bool bHasDestroy;
- 	bool bHasBeginPlay;
-diff --git a/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp b/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp
-index 889dd14..09d6d95 100644
---- a/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp
-+++ b/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/Private/ScriptGeneratorPlugin.cpp
-@@ -97,24 +97,6 @@ void FScriptGeneratorPlugin::FinishExport()
- 
- bool FScriptGeneratorPlugin::SupportsTarget(const FString& TargetName) const
- {
--	// We only support the target if it explicitly enables the required script plugin in its uproject file
--	bool bSupportsTarget = false;
--	if (FPaths::IsProjectFilePathSet())
--	{
--		FProjectDescriptor ProjectDescriptor;
--		FText OutError;
--		if (ProjectDescriptor.Load(FPaths::GetProjectFilePath(), OutError))
--		{
--			for (auto& PluginDescriptor : ProjectDescriptor.Plugins)
--			{
--				// For your own script plugin you might want to change the hardcoded name here to something else
--				if (PluginDescriptor.bEnabled && PluginDescriptor.Name == TEXT("ScriptPlugin"))
--				{
--					bSupportsTarget = true;
--					break;
--				}
--			}
--		}
--	}
--	return bSupportsTarget;
--}
-\ No newline at end of file
-+	// always build ScriptGeneratorPlugin
-+	return true;
-+}
-diff --git a/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs b/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
-index a8656b5..c7f62d0 100644
---- a/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
-+++ b/Engine/Plugins/ScriptGeneratorPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
-@@ -48,17 +48,7 @@ namespace UnrealBuildTool.Rules
- 
- 			// This checks only for UHT target platform, not the target platform of the game we're building so it's important
- 			// to make sure Lua is compiled for all supported platforms
--			var LuaLibDirectory = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua", "Lib", Target.Platform.ToString(), "Release");
--			var LuaLibPath = Path.Combine(LuaLibDirectory, "Lua.lib");
--			if (File.Exists(LuaLibPath))
--			{
--				Log.TraceVerbose("ScriptGenerator LUA Integration enabled");
--				Definitions.Add("WITH_LUA=1");
--			}
--			else
--			{
--				Log.TraceVerbose("ScriptGenerator LUA Integration NOT enabled");
--			}
-+			Definitions.Add("WITH_LUA=1");
- 		}
- 	}
--}
-\ No newline at end of file
-+}
-diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
-index 3f80999..77078f4 100644
---- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
-+++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
-@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
- 					"Engine",
- 					"InputCore",
- 					"SlateCore",
-+          "ScriptGeneratorPlugin",
- 					// ... add other public dependencies that you statically link with here ...
- 				}
- 				);
-@@ -53,22 +54,23 @@ namespace UnrealBuildTool.Rules
- 				}
- 				);
- 
--			var LuaPath = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua");				
--			var LuaLibDirectory = Path.Combine(LuaPath, "Lib", Target.Platform.ToString(), "Release");
--			var LuaLibPath = Path.Combine(LuaLibDirectory, "Lua.lib");
--			if (File.Exists(LuaLibPath))
-+			var LuaPath = Path.GetFullPath(Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua"));
-+			var LuaInstallDirectory = Path.Combine(LuaPath, "install");
-+      var LuaLibDirectory = Path.Combine(LuaInstallDirectory, "lib");
-+      var LuaIncDirectory = Path.Combine(LuaInstallDirectory, "include");
-+      var LuaLib = Path.Combine(LuaLibDirectory, "liblua.so");
-+			if (File.Exists(LuaLib))
- 			{					
- 				Definitions.Add("WITH_LUA=1");
- 
- 				// Path to Lua include files
--				var IncludePath = Path.GetFullPath(Path.Combine(LuaPath, "Include"));
--				PrivateIncludePaths.Add(IncludePath);
-+				PrivateIncludePaths.Add(LuaIncDirectory);
- 
- 				// Lib file
- 				PublicLibraryPaths.Add(LuaLibDirectory);
--				PublicAdditionalLibraries.Add(LuaLibPath);
-+				PublicAdditionalLibraries.Add(LuaLib);
- 
--				Log.TraceVerbose("LUA Integration enabled: {0}", IncludePath);
-+				Log.TraceVerbose("LUA Integration enabled: {0}", LuaInstallDirectory);
- 			}
- 			else
- 			{
-@@ -76,4 +78,4 @@ namespace UnrealBuildTool.Rules
- 			}
- 		}
- 	}
--}
-\ No newline at end of file
-+}

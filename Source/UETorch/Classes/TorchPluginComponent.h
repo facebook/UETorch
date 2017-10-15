@@ -18,7 +18,7 @@ class FTorchContext;
  * loaded on game start, and can register functions to be executed on each
  * iteration ('tick') of the game loop.
  */
-UCLASS(Blueprintable, ClassGroup = Script, hidecategories = (Activation, Collision), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = Script, hidecategories = (Object), meta = (BlueprintSpawnableComponent))
 class UETORCH_API UTorchPluginComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -49,14 +49,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Script|Functions")
 	virtual bool CallTorchFunctionString(FString FunctionName, FString In, FString &Out);
 
-  /**
-  * Calls a script defined function (Array<string> -> string)
-  * @param FunctionName Name of the function to call
-  * @param In Array of String arguments to the function
-  * @param Out String output from the function
-  */
-  UFUNCTION(BlueprintCallable, Category = "Script|Functions")
-  virtual bool CallTorchFunctionArray(FString FunctionName, TArray<FString> In, FString &Out);
+	/**
+	* Calls a script defined function (Array<string> -> string)
+	* @param FunctionName Name of the function to call
+	* @param In Array of String arguments to the function
+	* @param Out String output from the function
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Script|Functions")
+	virtual bool CallTorchFunctionArray(FString FunctionName, TArray<FString> In, FString &Out);
 
 
 	// Begin UActorComponent interface.

@@ -10,6 +10,7 @@
 #include "UETorchPrivatePCH.h"
 #include "TorchPluginComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "SceneViewport.h"
 #include <type_traits>
 
 
@@ -38,6 +39,17 @@ void FUETorch::ShutdownModule()
 
 
 /**
+ * Find an actor by name.
+ * @param fullName the full name of the actor, usually <level>.<ID Name>
+ *        See uetorch.GetActor() in uetorch.lua for usage.
+ */
+extern "C" UETORCH_API AActor *FindActor(const char *fullName) {
+    UObject* Obj = StaticFindObject(AActor::StaticClass(), NULL, *FString(fullName), false);
+    AActor* Result = Cast<AActor>(Obj);
+    return Result;
+}
+
+/**
  * Simulate a user input event (press or relese a key).
  *
  * @param key name of the key that should be pressed.
@@ -48,43 +60,15 @@ void FUETorch::ShutdownModule()
  *        IE_PRESSED  - press the key
  *        IE_RELEASED - release the key
  */
- extern "C" void PressKey(const char *key, int ControllerId, int eventType) {
-	auto fkey = FKey(key);
-	auto ViewportClient = GEngine->GameViewport;
+ extern "C" UETORCH_API void PressKey(UObject* _this, const char *key, int ControllerId, int eventType) {
+	auto fKey = FKey(key);
 
-	ViewportClient->InputKey(ViewportClient->Viewport, ControllerId, fkey, (EInputEvent) eventType);
-}
-
-// SetTickDeltaBounds() requires a patch to Unreal Engine that adds MinDeltaSeconds and MaxDeltaSeconds
-// to UWorld.
-// This is an SFINAE check to see whether the patch has been applied.
-struct UWorldHasMinDeltaSeconds
-{
-	struct Fallback { int MinDeltaSeconds; };
-	struct Combined : UWorld, Fallback { };
-	template<typename U, U> struct SFINAE;
-
-	template<typename U> static char f(SFINAE<int Fallback::*, &U::MinDeltaSeconds>*);
-	template<typename U> static int f(...);
-
-	static bool const value = sizeof(f<Combined>(0)) == sizeof(int);
-};
-
-
-template<typename WorldT>
-bool SetTickDeltaBoundsInternal(WorldT* World, float MinDeltaSeconds, float MaxDeltaSeconds, std::true_type)
-{
-	World->MinDeltaSeconds = MinDeltaSeconds;
-	World->MaxDeltaSeconds = MaxDeltaSeconds;
-	return true;
-}
-
-template<typename WorldT>
-bool SetTickDeltaBoundsInternal(WorldT* World, float MinDeltaSeconds, float MaxDeltaSeconds, std::false_type)
-{
-	printf("You need to the patch file located at Engine/Plugins/UETorch/UnrealEngine.patch\n");
-	printf("and rebuild Unreal Engine for SetTickDeltaBounds to work\n");
-	return false;
+	auto PlayerController = UGameplayStatics::GetPlayerController(_this, 0);
+	if(PlayerController == NULL) {
+		printf("PlayerController null\n");
+	} else {
+		PlayerController->InputKey(fKey, (EInputEvent) eventType, 1.0, false);
+	}
 }
 
 /**
@@ -99,15 +83,23 @@ bool SetTickDeltaBoundsInternal(WorldT* World, float MinDeltaSeconds, float MaxD
  * @param MinDeltaSeconds the minimum game time per tick
  * @param MaxDeltaSeconds the maximum game time per tick
  */
-extern "C" bool SetTickDeltaBounds(UObject* _this, float MinDeltaSeconds, float MaxDeltaSeconds)
+extern "C" UETORCH_API bool SetTickDeltaBounds(UObject* _this, float MinDeltaSeconds, float MaxDeltaSeconds)
 {
-	UWorld* World = GEngine->GetWorldFromContextObject(_this);
-	if(World == NULL) {
+	UWorld *world = GEngine->GetWorldFromContextObject(_this);
+	if(world == NULL) {
 		printf("World null\n");
 		return false;
 	}
-	return SetTickDeltaBoundsInternal(World, MinDeltaSeconds, MaxDeltaSeconds,
-		std::integral_constant<bool, UWorldHasMinDeltaSeconds::value>());
+
+	AWorldSettings *settings = world->GetWorldSettings();
+	if(settings == NULL) {
+		printf("WorldSettings null\n");
+		return false;
+	}
+	settings->MinUndilatedFrameTime = MinDeltaSeconds;
+	settings->MaxUndilatedFrameTime = MaxDeltaSeconds;
+
+	return true;
 }
 
 typedef struct {
@@ -118,7 +110,7 @@ typedef struct {
 /**
  * @returns the size of the viewport, in pixels.
  */
-extern "C" void GetViewportSize(IntSize* r)
+extern "C" UETORCH_API void GetViewportSize(IntSize* r)
 {
 	if(GEngine == NULL){
 		printf("GEngine null\n");
@@ -143,7 +135,7 @@ extern "C" void GetViewportSize(IntSize* r)
  * @param x the x position to set the cursor to
  * @param y the y position to set the cursor to
  */
-extern "C" void SetMouse(int x, int y)
+extern "C" UETORCH_API void SetMouse(int x, int y)
 {
 	if(GEngine == NULL){
 		printf("GEngine null\n");
@@ -170,7 +162,7 @@ extern "C" void SetMouse(int x, int y)
  *             This array is filled with the screenshot data in [Y,X,color] order.
  * @returns true if successful
  */
-extern "C" bool CaptureScreenshot(IntSize* size, void* data)
+extern "C" UETORCH_API bool CaptureScreenshot(IntSize* size, void* data)
 {
 	FlushRenderingCommands();
 
@@ -194,23 +186,28 @@ extern "C" bool CaptureScreenshot(IntSize* size, void* data)
 		return false;
 	}
 
-	TSharedPtr<SWindow> WindowPtr = GEngine->GameViewport->GetWindow();
+	TSharedPtr<SWidget> ViewportPtr = GEngine->GameViewport->GetGameViewportWidget();
 
 	bool bScreenshotSuccessful = false;
-
-	if( WindowPtr.IsValid() && FSlateApplication::IsInitialized() )
+	FIntRect SizeRect(0, 0, size->X, size->Y);
+	if( ViewportPtr.IsValid() && FSlateApplication::IsInitialized())
 	{
-		FIntVector Size(size->X, size->Y, 0);
-		TSharedRef<SWidget> WindowRef = WindowPtr.ToSharedRef();
-		bScreenshotSuccessful = FSlateApplication::Get().TakeScreenshot(WindowRef, Bitmap, Size);
+		FIntVector OutSize;
+		TSharedRef<SWidget> ViewportRef = ViewportPtr.ToSharedRef();
+		bScreenshotSuccessful = FSlateApplication::Get().TakeScreenshot(
+			ViewportRef, SizeRect, Bitmap, OutSize);
 	}
 	else
 	{
-		FIntRect Rect(0, 0, size->X, size->Y);
-		bScreenshotSuccessful = GetViewportScreenShot(Viewport, Bitmap, Rect);
+		bScreenshotSuccessful = GetViewportScreenShot(Viewport, Bitmap, SizeRect);
 	}
-	if(bScreenshotSuccessful)
+
+	if (bScreenshotSuccessful)
 	{
+		if (Bitmap.Num() != size->X * size->Y) {
+			printf("Screenshot bitmap had the wrong number of elements: %d\n", Bitmap.Num());
+			return false;
+		}
 		float* values = (float*) data;
 		for (const FColor& color : Bitmap) {
 			*values++ = color.R / 255.0f;
@@ -245,12 +242,13 @@ FSceneView* GetSceneView(APlayerController* PlayerController, UWorld* World) {
 	auto Viewport = GEngine->GameViewport->Viewport;
 
 	// Create a view family for the game viewport
-	FSceneViewFamilyContext ViewFamily(
+	static TSharedPtr<FSceneViewFamilyContext> ViewFamily;
+	ViewFamily = MakeShareable(new FSceneViewFamilyContext(
 		FSceneViewFamily::ConstructionValues(
 			Viewport,
 			World->Scene,
 			GEngine->GameViewport->EngineShowFlags )
-		.SetRealtimeUpdate(true) );
+		.SetRealtimeUpdate(true) ) );
 
 
 	// Calculate a view where the player is to update the streaming from the players start location
@@ -260,7 +258,7 @@ FSceneView* GetSceneView(APlayerController* PlayerController, UWorld* World) {
 	if (LocalPlayer == NULL) {
 		return NULL;
 	}
-	FSceneView* SceneView = LocalPlayer->CalcSceneView( &ViewFamily, /*out*/ ViewLocation, /*out*/ ViewRotation, Viewport );
+	FSceneView* SceneView = LocalPlayer->CalcSceneView( ViewFamily.Get(), /*out*/ ViewLocation, /*out*/ ViewRotation, Viewport );
 	return SceneView;
 }
 
@@ -336,7 +334,7 @@ bool InitCapture(UObject* _this, const IntSize* size, FViewport** pViewport, APl
  * @param verbose verbose output
  * @returns true if the optical flow capture was successful
  */
-extern "C" bool CaptureSegmentation(UObject* _this, const IntSize* size, void* seg_data, int stride, const AActor** objects, int nObjects, bool verbose)
+extern "C" UETORCH_API bool CaptureSegmentation(UObject* _this, const IntSize* size, void* seg_data, int stride, const AActor** objects, int nObjects, bool verbose)
 {
 	FViewport* Viewport = nullptr;
 	APlayerController* PlayerController = nullptr;
@@ -371,7 +369,6 @@ extern "C" bool CaptureSegmentation(UObject* _this, const IntSize* size, void* s
 			FSceneView__SafeDeprojectFVector2D(SceneView, ScreenPosition, WorldOrigin, WorldDirection);
 			// Cast ray from pixel to find intersecting object
 			bool bHit = World->LineTraceSingleByChannel(HitResult, WorldOrigin, WorldOrigin + WorldDirection * HitResultTraceDistance, TraceChannel, CollisionQueryParams);
-			if (verbose) printf("E\n");
 			AActor* Actor = NULL;
 			*seg_values = 0; // no foreground object
 			if(bHit) {
@@ -411,7 +408,7 @@ extern "C" bool CaptureSegmentation(UObject* _this, const IntSize* size, void* s
  * @param verbose verbose output
  * @returns true if the optical flow capture was successful
  */
-extern "C" bool CaptureMasks(UObject* _this, const IntSize* size, void* seg_data, int stride, const AActor** objects, int nObjects, bool verbose)
+extern "C" UETORCH_API bool CaptureMasks(UObject* _this, const IntSize* size, void* seg_data, int stride, const AActor** objects, int nObjects, bool verbose)
 {
 	FViewport* Viewport = nullptr;
 	APlayerController* PlayerController = nullptr;
@@ -527,7 +524,7 @@ FBodyInstance* GetBodyInstance(AActor* Actor) {
  * @param verbose verbose output
  * @returns true if the optical flow capture was successful
  */
-extern "C" bool CaptureOpticalFlow(UObject* _this, const IntSize* size, void* flow_data, void* rgb_data, float maxFlow, int stride, bool verbose)
+extern "C" UETORCH_API bool CaptureOpticalFlow(UObject* _this, const IntSize* size, void* flow_data, void* rgb_data, float maxFlow, int stride, bool verbose)
 {
 	FViewport* Viewport = nullptr;
 	APlayerController* PlayerController = nullptr;
@@ -664,7 +661,7 @@ extern "C" bool CaptureOpticalFlow(UObject* _this, const IntSize* size, void* fl
  * @param verbose verbose output
  * @returns true if the optical flow capture was successful
  */
-extern "C" bool CaptureDepthField(UObject* _this, const IntSize* size, void* data, int stride, bool verbose)
+extern "C" UETORCH_API bool CaptureDepthField(UObject* _this, const IntSize* size, void* data, int stride, bool verbose)
 {
 	FViewport* Viewport = nullptr;
 	APlayerController* PlayerController = nullptr;
@@ -736,7 +733,7 @@ extern "C" bool CaptureDepthField(UObject* _this, const IntSize* size, void* dat
  * Getters and setters for Actor properties.
  */
 
-extern "C" bool GetActorLocation(AActor* object, float* x, float* y, float* z) {
+extern "C" UETORCH_API bool GetActorLocation(AActor* object, float* x, float* y, float* z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -748,7 +745,7 @@ extern "C" bool GetActorLocation(AActor* object, float* x, float* y, float* z) {
 	return true;
 }
 
-extern "C" bool GetActorRotation(AActor* object, float* pitch, float* yaw, float* roll) {
+extern "C" UETORCH_API bool GetActorRotation(AActor* object, float* pitch, float* yaw, float* roll) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -760,7 +757,7 @@ extern "C" bool GetActorRotation(AActor* object, float* pitch, float* yaw, float
 	return true;
 }
 
-extern "C" bool GetActorVisible(AActor* object, bool* visible) {
+extern "C" UETORCH_API bool GetActorVisible(AActor* object, bool* visible) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -769,7 +766,7 @@ extern "C" bool GetActorVisible(AActor* object, bool* visible) {
 	return true;
 }
 
-extern "C" bool GetActorVelocity(AActor* object, float* x, float* y, float* z) {
+extern "C" UETORCH_API bool GetActorVelocity(AActor* object, float* x, float* y, float* z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -783,7 +780,7 @@ extern "C" bool GetActorVelocity(AActor* object, float* x, float* y, float* z) {
 	return true;
 }
 
-extern "C" bool GetActorAngularVelocity(AActor* object, float* x, float* y, float* z) {
+extern "C" UETORCH_API bool GetActorAngularVelocity(AActor* object, float* x, float* y, float* z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -800,7 +797,7 @@ extern "C" bool GetActorAngularVelocity(AActor* object, float* x, float* y, floa
 	return true;
 }
 
-extern "C" bool GetActorScale3D(AActor* object, float* x, float* y, float* z) {
+extern "C" UETORCH_API bool GetActorScale3D(AActor* object, float* x, float* y, float* z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -812,7 +809,7 @@ extern "C" bool GetActorScale3D(AActor* object, float* x, float* y, float* z) {
 	return true;
 }
 
-extern "C" bool GetActorBounds(AActor* object, float* x, float* y, float* z, float* boxX, float* boxY, float* boxZ) {
+extern "C" UETORCH_API bool GetActorBounds(AActor* object, float* x, float* y, float* z, float* boxX, float* boxY, float* boxZ) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -828,7 +825,7 @@ extern "C" bool GetActorBounds(AActor* object, float* x, float* y, float* z, flo
 	return true;
 }
 
-extern "C" bool SetActorLocation(AActor* object, float x, float y, float z) {
+extern "C" UETORCH_API bool SetActorLocation(AActor* object, float x, float y, float z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -836,7 +833,7 @@ extern "C" bool SetActorLocation(AActor* object, float x, float y, float z) {
 	return object->SetActorLocation(FVector(x,y,z), false);
 }
 
-extern "C" bool SetActorRotation(AActor* object, float pitch, float yaw, float roll) {
+extern "C" UETORCH_API bool SetActorRotation(AActor* object, float pitch, float yaw, float roll) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -844,7 +841,7 @@ extern "C" bool SetActorRotation(AActor* object, float pitch, float yaw, float r
 	return object->SetActorRotation(FRotator(pitch,yaw,roll));
 }
 
-extern "C" bool SetActorLocationAndRotation(AActor* object, float x, float y, float z, float pitch, float yaw, float roll) {
+extern "C" UETORCH_API bool SetActorLocationAndRotation(AActor* object, float x, float y, float z, float pitch, float yaw, float roll) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -852,7 +849,7 @@ extern "C" bool SetActorLocationAndRotation(AActor* object, float x, float y, fl
 	return object->SetActorLocationAndRotation(FVector(x,y,z), FRotator(pitch,yaw,roll), false);
 }
 
-extern "C" bool SetActorVisible(AActor* object, bool visible) {
+extern "C" UETORCH_API bool SetActorVisible(AActor* object, bool visible) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -861,7 +858,7 @@ extern "C" bool SetActorVisible(AActor* object, bool visible) {
 	return true;
 }
 
-extern "C" bool SetActorVelocity(AActor* object, float x, float y, float z) {
+extern "C" UETORCH_API bool SetActorVelocity(AActor* object, float x, float y, float z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -884,7 +881,7 @@ extern "C" bool SetActorVelocity(AActor* object, float x, float y, float z) {
 	return true;
 }
 
-extern "C" bool SetActorAngularVelocity(AActor* object, float x, float y, float z) {
+extern "C" UETORCH_API bool SetActorAngularVelocity(AActor* object, float x, float y, float z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -907,7 +904,7 @@ extern "C" bool SetActorAngularVelocity(AActor* object, float x, float y, float 
 	return true;
 }
 
-extern "C" bool SetActorScale3D(AActor* object, float x, float y, float z) {
+extern "C" UETORCH_API bool SetActorScale3D(AActor* object, float x, float y, float z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -916,7 +913,7 @@ extern "C" bool SetActorScale3D(AActor* object, float x, float y, float z) {
 	return true;
 }
 
-extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
+extern "C" UETORCH_API bool SetMaterial(AActor* object, UMaterial* material) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -934,7 +931,7 @@ extern "C" bool SetMaterial(AActor* object, UMaterial* material) {
 	return true;
 }
 
-extern "C" bool AddForce(AActor* object, float x, float y, float z) {
+extern "C" UETORCH_API bool AddForce(AActor* object, float x, float y, float z) {
 	if(object == NULL) {
 		printf("Object is null\n");
 		return false;
@@ -957,7 +954,7 @@ extern "C" bool AddForce(AActor* object, float x, float y, float z) {
 	return true;
 }
 
-extern "C" bool SetResolution(int x, int y) {
+extern "C" UETORCH_API bool SetResolution(int x, int y) {
 	if(GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame) {
 		int32 WindowModeInt = GSystemResolution.WindowMode;
 		EWindowMode::Type WindowMode = EWindowMode::ConvertIntToWindowMode(WindowModeInt);
@@ -968,6 +965,6 @@ extern "C" bool SetResolution(int x, int y) {
 	}
 }
 
-extern "C" void ExecuteConsoleCommand(UObject* _this, char* command) {
+extern "C" UETORCH_API void ExecuteConsoleCommand(UObject* _this, char* command) {
 	UKismetSystemLibrary::ExecuteConsoleCommand(_this, command, NULL);
 }

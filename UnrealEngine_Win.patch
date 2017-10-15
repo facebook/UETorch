@@ -1,0 +1,105 @@
+diff --git a/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin b/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin
+index 13729f1086..bad5a31cca 100644
+--- a/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin
++++ b/Engine/Plugins/ScriptPlugin/ScriptPlugin.uplugin
+@@ -10,7 +10,7 @@
+ 	"DocsURL" : "",
+ 	"MarketplaceURL" : "",
+ 	"SupportURL" : "",
+-	"EnabledByDefault" : false,
++	"EnabledByDefault" : true,
+ 	"CanContainContent" : false,
+ 	"IsBetaVersion" : false,
+ 	"Installed" : false,
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs b/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
+index a907246117..3976d00f44 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptGeneratorPlugin/ScriptGeneratorPlugin.Build.cs
+@@ -48,8 +48,8 @@ namespace UnrealBuildTool.Rules
+ 
+ 			// This checks only for UHT target platform, not the target platform of the game we're building so it's important
+ 			// to make sure Lua is compiled for all supported platforms
+-			var LuaLibDirectory = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua", "Lib", Target.Platform.ToString(), "Release");
+-			var LuaLibPath = Path.Combine(LuaLibDirectory, "Lua.lib");
++			var LuaLibDirectory = Path.GetFullPath(Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua", "install", "lib"));
++			var LuaLibPath = Path.Combine(LuaLibDirectory, "LUA52.lib");
+ 			if (File.Exists(LuaLibPath))
+ 			{
+ 				Log.TraceVerbose("ScriptGenerator LUA Integration enabled");
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp
+index 6ce7bebaa0..b78d70ce3d 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.cpp
+@@ -612,7 +612,8 @@ bool FLuaContext::Initialize(const FString& Code, UObject* Owner)
+ 	bool bResult = false;
+ 	LuaState = LuaNewState();
+ 	luaL_openlibs(LuaState);
+-	LuaRegisterExportedClasses(LuaState);
++	// FIXME: get ScriptGeneratorPlugin to work :(
++	// LuaRegisterExportedClasses(LuaState);
+ 	LuaRegisterUnrealUtilities(LuaState);
+ 
+ 	if (luaL_loadstring(LuaState, TCHAR_TO_ANSI(*Code)) == 0)
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
+index ac7a50e547..1a61a2f4ab 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/LuaIntegration.h
+@@ -11,8 +11,9 @@ extern "C"
+ #include "lualib.h"
+ }
+ 
+-class FLuaContext : public FScriptContextBase
++class SCRIPTPLUGIN_API FLuaContext : public FScriptContextBase
+ {
++protected:
+ 	bool bHasTick;
+ 	bool bHasDestroy;
+ 	bool bHasBeginPlay;
+@@ -51,7 +52,7 @@ public:
+ #endif
+ };
+ 
+-struct FLuaUtils
++struct SCRIPTPLUGIN_API FLuaUtils
+ {
+ 	static void RegisterLibrary(lua_State* LuaState, const luaL_Reg Lib[], const ANSICHAR* LibName);
+ 	static bool CallFunction(lua_State* LuaState, const ANSICHAR* FunctionName);
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPluginPrivatePCH.h b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPluginPrivatePCH.h
+index b874e2f7e3..8514c9eea2 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPluginPrivatePCH.h
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/Private/ScriptPluginPrivatePCH.h
+@@ -18,5 +18,5 @@
+ #include "LuaIntegration.h"
+ #endif // WITH_LUA
+ 
+-DECLARE_LOG_CATEGORY_EXTERN(LogScriptPlugin, Log, All);
++SCRIPTPLUGIN_API DECLARE_LOG_CATEGORY_EXTERN(LogScriptPlugin, Log, All);
+ 
+diff --git a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
+index 4d27de30b0..52a44d48ca 100644
+--- a/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
++++ b/Engine/Plugins/ScriptPlugin/Source/ScriptPlugin/ScriptPlugin.Build.cs
+@@ -53,18 +53,19 @@ namespace UnrealBuildTool.Rules
+ 				}
+ 				);
+ 
+-			var LuaPath = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua");				
+-			var LuaLibDirectory = Path.Combine(LuaPath, "Lib", Target.Platform.ToString(), "Release");
+-			var LuaLibPath = Path.Combine(LuaLibDirectory, "Lua.lib");
++			var LuaPath = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua", "install");				
++			var LuaLibDirectory = Path.Combine(LuaPath, "lib");
++			var LuaLibPath = Path.Combine(LuaLibDirectory, "LUA52.lib");
+ 			if (File.Exists(LuaLibPath))
+ 			{					
+ 				Definitions.Add("WITH_LUA=1");
+ 
+ 				// Path to Lua include files
+-				var IncludePath = Path.GetFullPath(Path.Combine(LuaPath, "Include"));
++				var IncludePath = Path.GetFullPath(Path.Combine(LuaPath, "include"));
+ 				PrivateIncludePaths.Add(IncludePath);
+ 
+ 				// Lib file
++				PublicDelayLoadDLLs.Add("LUA52.dll");
+ 				PublicLibraryPaths.Add(LuaLibDirectory);
+ 				PublicAdditionalLibraries.Add(LuaLibPath);
+ 
